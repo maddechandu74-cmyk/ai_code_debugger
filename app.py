@@ -52,7 +52,7 @@ Student Notes:
 """
             with st.spinner("Creating your custom quiz and study summary..."):
                 client = genai.Client(api_key=api_key)
-                models_to_try = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+                models_to_try = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.0-flash"]
                 success = False
                 last_error = ""
 
