@@ -2,85 +2,62 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
+from google.genai import errors
 
-# 1. Load API key from .env
 load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
 
-# 2. Page configuration
-st.set_page_config(
-    page_title="AI Code Debugger & Complexity Explainer",
-    page_icon="🛠️",
-    layout="wide",
-)
+st.set_page_config(page_title="AI Study Buddy (Notes to Quiz)", page_icon="📚", layout="wide")
 
-st.title("🛠️ AI Code Debugger & Complexity Explainer")
-st.write("Paste your code below to catch bugs, optimize logic, and inspect Big-O time and space complexity.")
+st.title("📚 AI Study Buddy (Notes to Quiz)")
+st.markdown("Paste your lecture notes or study material below to generate practice quizzes, flashcards, and key takeaways.")
 
-# 3. User inputs
-col1, col2 = st.columns([1, 2])
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    language = st.selectbox(
-        "Programming Language",
-        ["Python", "C", "C++", "Java", "JavaScript", "SQL"],
+    subject = st.text_input("Subject / Topic (Optional)", placeholder="e.g., Data Structures - Binary Trees")
+    num_questions = st.slider("Number of Quiz Questions", min_value=3, max_value=10, value=5)
+    difficulty = st.radio(
+        "Difficulty Level",
+        ["Easy (Recall & Definitions)", "Medium (Conceptual & Application)", "Hard (Exam-Level Problem Solving)"]
     )
-    focus_mode = st.radio(
-        "Analysis Mode",
-        [
-            "Full Debug + Optimization",
-            "Find Bugs Only",
-            "Big-O Time & Space Complexity",
-        ],
+    notes = st.text_area(
+        "Paste Your Study Notes Here",
+        height=240,
+        placeholder="Paste your lecture notes, textbook summary, or topic concepts here..."
     )
-    error_message = st.text_input(
-        "Optional Error Message",
-        placeholder="e.g., IndexError: list index out of range",
-    )
+    generate_btn = st.button("Generate Quiz & Study Guide", type="primary")
 
 with col2:
-    code_input = st.text_area(
-        "Paste Your Code Here",
-        height=260,
-        placeholder="def two_sum(nums, target):\n    for i in range(len(nums)):\n        ...",
-    )
+    st.subheader("Generated Quiz & Study Material")
+    if generate_btn:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            st.error("API Key not found! Add GEMINI_API_KEY to your .env file or Streamlit Secrets.")
+        elif not notes.strip():
+            st.warning("Please paste some study notes first.")
+        else:
+            prompt = f"""You are an expert academic tutor and study buddy.
+Subject/Topic: {subject if subject.strip() else "General Study Material"}
+Difficulty: {difficulty}
+Number of Questions: {num_questions}
 
-analyze_btn = st.button("Analyze Code", type="primary")
+Based ONLY on the following student notes, create a well-structured study guide with:
+1. **Key Takeaways (Bullet Summary)**: Concise summary of the core concepts.
+2. **Practice Quiz ({num_questions} Questions)**: Multiple-choice questions (A, B, C, D) tailored to {difficulty} level.
+3. **Answer Key & Explanations**: Provide the correct option and a brief explanation for each question.
 
-# 4. Validate and call Gemini API
-if analyze_btn:
-    if not api_key:
-        st.error("API Key not found! Add GEMINI_API_KEY to your .env file.")
-    elif not code_input.strip():
-        st.warning("Please paste a code snippet before clicking Analyze Code.")
-    else:
-        with st.spinner("Inspecting syntax, edge cases, and time complexity..."):
-            try:
-                client = genai.Client(api_key=api_key)
-                prompt = f"""
-                Act as a senior software engineer and competitive programming mentor.
-                Analyze the following {language} code.
-                - Requested Mode: {focus_mode}
-                - Error Message Provided: {error_message if error_message.strip() else "None"}
-
-                Code:
-                ```{language.lower()}
-                {code_input}
-                ```
-
-                Respond clearly using Markdown with these sections:
-                1. **Issues & Edge Cases Found**: Bullet points explaining any syntax errors, logical bugs, or failing edge cases (or confirm if the code is already bug-free).
-                2. **Corrected / Optimized Code**: Provide the clean, working {language} code block with brief inline comments.
-                3. **Complexity Breakdown**: State the **Time Complexity** and **Space Complexity** in Big-O notation with a 1–2 sentence explanation of why.
-                """
-
-                response = client.models.generate_content(
-                    model="gemini-3.8-flash",
-                    contents=prompt,
-                )
-
-                st.success("Analysis Complete!")
-                st.markdown(response.text)
-
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+Student Notes:
+{notes}
+"""
+            with st.spinner("Creating your custom quiz and study summary..."):
+                try:
+                    client = genai.Client(api_key=api_key)
+                    response = client.models.generate_content(
+                        model="gemini-3.8-flash",
+                        contents=prompt,
+                    )
+                    st.markdown(response.text)
+                except errors.APIError as e:
+                    st.error(f"API Error: {e.message}. Please try again in a few seconds.")
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
