@@ -1,4 +1,5 @@
 import os
+import time
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
@@ -50,14 +51,26 @@ Student Notes:
 {notes}
 """
             with st.spinner("Creating your custom quiz and study summary..."):
-                try:
-                    client = genai.Client(api_key=api_key)
-                    response = client.models.generate_content(
-                        model="gemini-3.8-flash",
-                        contents=prompt,
-                    )
-                    st.markdown(response.text)
-                except errors.APIError as e:
-                    st.error(f"API Error: {e.message}. Please try again in a few seconds.")
-                except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
+                client = genai.Client(api_key=api_key)
+                models_to_try = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+                success = False
+                last_error = ""
+
+                for model_name in models_to_try:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt,
+                        )
+                        st.markdown(response.text)
+                        success = True
+                        break
+                    except errors.APIError as e:
+                        last_error = e.message
+                        time.sleep(1)
+                    except Exception as e:
+                        last_error = str(e)
+                        break
+
+                if not success:
+                    st.error(f"Servers are temporarily busy ({last_error}). Please click Generate again!")
